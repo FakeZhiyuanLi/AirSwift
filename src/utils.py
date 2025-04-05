@@ -1,6 +1,6 @@
 import pandas as pd
 
-keys = pd.read_csv('/Users/zhiyuan/Documents/keys.csv')
+keys = pd.read_csv('~/Documents/keys.csv')
 
 AWS_ACCESS_KEY = keys["Access key ID"][0]
 AWS_SECRET_KEY = keys["Secret access key"][0]
