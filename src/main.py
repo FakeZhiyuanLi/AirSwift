@@ -1,7 +1,7 @@
 from tkinter.scrolledtext import ScrolledText
 from watchdog.observers import Observer
 from fileUtils import DownloadHandler
-from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder
+from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder, upload_file_to_bucket_folder
 from file_handler import process_file, get_description_to_file_path
 from faiss_db import VectorDB
 import customtkinter as ctk
@@ -20,7 +20,7 @@ DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
 UUID = "1234"
-POLL_FROM_AWS = False
+POLL_FROM_AWS = True
 
 # Determine the default Downloads folder based on the OS
 def get_downloads_folder():
@@ -40,24 +40,26 @@ class QueryInputBox(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=5)
         self.grid_columnconfigure(1, weight=1)
 
+        self.recipient_input_box = ctk.CTkEntry(self, placeholder_text="UUID (Ex. 1234)", 
+                font=("Arial Italic", 16), text_color="#AAAAAA", width=200, height=40, corner_radius=15)
+        self.recipient_input_box.grid(row=0, column=0, padx=10, pady=10, sticky="")
+
         self.text_input = ctk.CTkEntry(self, placeholder_text="File Description (ie. Image of Thomas The Tank Engine)", 
                 font=("Arial Italic", 16), text_color="#AAAAAA", height=80, corner_radius=15)
-        self.text_input.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        self.text_input.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
         self.speech_button = ctk.CTkButton(self, text="tts", width=60, height=60, corner_radius=30, command=self.handle_tts_button)
-        self.speech_button.grid(row=0, column=1, padx=0, pady=0, sticky="")
+        self.speech_button.grid(row=1, column=1, padx=0, pady=0, sticky="")
 
         self.send_button = ctk.CTkButton(self, text="Send   →", font=("Arial Bold", 24), width=100, height=50, corner_radius=25, command=self.handle_send_button)
-        self.send_button.grid(row=1, column=0, padx=10, pady=(10, 100), sticky="")
+        self.send_button.grid(row=2, column=0, padx=10, pady=(10, 100), sticky="")
 
     def handle_send_button(self):
         user_description = self.text_input.get()
-
         retrieved_description = db.search_with_context(user_description)['document']
-
         file_path = get_description_to_file_path()[retrieved_description]
-        print(f'file_path: {file_path}')
-        
+        recipient_UUID = self.recipient_input_box.get()
+        upload_file_to_bucket_folder(file_path, recipient_UUID)
     
     def handle_tts_button(self):
         pass
@@ -71,14 +73,15 @@ class RecipientAndInput(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
-        self.recipient_dropdown = ctk.CTkOptionMenu(self, values=["Select A Recipient", "Friend 1", "Friend 2", "Group Chat"],
-            width=300, height=40, 
-            fg_color="#2D2D2D", button_color="#2D2D2D",
-            text_color="white", dropdown_fg_color="#2D2D2D")
-        self.recipient_dropdown.grid(row=0, column=0, padx=10, pady=10, sticky="")
+        # self.recipient_dropdown = ctk.CTkOptionMenu(self, values=["Select A Recipient", "Friend 1", "Friend 2", "Group Chat"],
+        #     width=300, height=40, 
+        #     fg_color="#2D2D2D", button_color="#2D2D2D",
+        #     text_color="white", dropdown_fg_color="#2D2D2D")
+        # self.recipient_dropdown.grid(row=0, column=0, padx=10, pady=10, sticky="")
 
         self.queryInputBox = QueryInputBox(self)
         self.queryInputBox.grid(row=1, column=0, padx=10, pady=20, sticky="ew")
+
 
 class UserControls(ctk.CTkFrame):
     def __init__(self, parent):
