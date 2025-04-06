@@ -21,8 +21,8 @@ db = VectorDB()
 DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
-# UUID = str(random.randint(10000, 99999))
-UUID = "31846"
+UUID = str(random.randint(10000, 99999))
+# UUID = "31846"
 POLL_FROM_AWS = True
 
 # Determine the default Downloads folder based on the OS
