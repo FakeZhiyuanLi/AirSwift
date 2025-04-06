@@ -8,6 +8,7 @@ import pytesseract
 import csv
 
 llm_api = LLMClient()
+description_to_file_path = {}
 
 def process_file(file_path):
     root, extension = os.path.splitext(file_path)
@@ -24,11 +25,13 @@ def process_text_file(abs_file_path) -> str:
     with open(abs_file_path, 'r') as fp:
         text_content = fp.read()
     text_desc = llm_api.caption_text(text_content)
+    description_to_file_path[text_desc] = abs_file_path # {description: filepath}
     return text_desc
 
 def process_image_file(abs_file_path: str) -> str:
     image = llm_api.encode_image(abs_file_path)
     image_desc = llm_api.caption_image(image)
+    description_to_file_path[image_desc] = abs_file_path # {description: filepath}
     return image_desc
 
 def process_csv_file(abs_file_path: str) -> str:
@@ -39,6 +42,7 @@ def process_csv_file(abs_file_path: str) -> str:
         for row in csv_reader:
             text.append(row)
     csv_desc = llm_api.caption_csv(str(text))
+    description_to_file_path[csv_desc] = abs_file_path # {description: filepath}
     return csv_desc
 
 def process_pdf_file(abs_file_path: str) -> str:
@@ -46,8 +50,10 @@ def process_pdf_file(abs_file_path: str) -> str:
         text = extract_text_pdf(abs_file_path)
         return text
     else:
-        text = extract_text_scanned_pdf(abs_file_path)
-        return text
+        pdf_text = extract_text_scanned_pdf(abs_file_path)
+        #transcribe to gpt
+        description_to_file_path[pdf_text] = abs_file_path # {description: filepath}
+        return pdf_text
     
 #Gets content from all pages, text pdf
 def extract_text_pdf(abs_file_path) -> str:
