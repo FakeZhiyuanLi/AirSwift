@@ -10,6 +10,8 @@ class DownloadHandler(FileSystemEventHandler):
         ".jpg",
         ".jpeg",
         ".txt",
+        ".pdf",
+        ".csv"
     }
 
     def __init__(self, file_queue):
