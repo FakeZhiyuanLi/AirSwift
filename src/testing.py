@@ -11,7 +11,13 @@ class Main:
         db = VectorDB()
         # image_desc = file_handler.process_image_file("/Users/yashpanwar/Downloads/sunflower.jpg")
         # text_desc = file_handler.process_text_file("/Users/yashpanwar/Downloads/catinthehat.txt") #/Users/yashpanwar/Downloads/dialog.txt
-        # #pdf_desc = file_handler.process_pdf_file("'/Users/yashpanwar/Downloads/Ch 2 Test outline.pdf'")
+        pdf_desc = file_handler.process_pdf_file("/Users/yashpanwar/Downloads/Ch 2 Test outline.pdf")
+        db.add_document(pdf_desc)
+        context = """
+        Test document
+        """
+        retrieved_doc = db.search_with_context(context)
+        print(retrieved_doc['document'])
         # csv_desc = file_handler.process_csv_file("/Users/yashpanwar/git/expressionevaluator-aden-panwayas-mvla/bin/analysis_sum.csv")
         # test_documents = [
         #     image_desc,
