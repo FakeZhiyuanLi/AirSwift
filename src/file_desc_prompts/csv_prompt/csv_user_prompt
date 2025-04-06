@@ -1,0 +1,5 @@
+Given this CSV file, you will describe and summarize its contents. Look for patterns, analyze the headings, consider what the goal of the data or inputs is. These are key things to look for when creating your description:
+Headers, 2) data types content domain, 3) data distribution and statistical summary that can be ascertained, 4) metadata is applicable, 5) formatting conventions, 6) contextual clues.
+Generated details will be compared to others within a similarity search, so ensure that the key details are extracted. This description should be plain English and easy to decipher with minimal descriptors about the data itself and instead the story it creates that can be taken out when used in a similarity search. 
+
+Generate a description that is 25 words long. 

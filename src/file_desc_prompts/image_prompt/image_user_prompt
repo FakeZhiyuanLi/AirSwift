@@ -1,0 +1,15 @@
+Given this image, you will describe and summarize its contents. If the image is as given below, you will describe as follows:
+1) Scene or landscape, describe geographical elements (mountains, water, vegetation, weather), lighting or time of day, scale and perspective, atmosphere/mood (bright, foggy, vibrant), layers of composition (foreground, midground, background), human elements such as buildings or roads or people
+2) Portraits, describe the subject's expression and emotion, body language, pose, lighting (shadows), framing, and composition, background (includes location, objects, colors), stylistic elements (black and white or color, props, clothing, cultural cues)
+3) Urban scenes, describe people interactions, environment (buildings, streets, vehicles, signs, graffiti), cultural and social context (vendors, clothes, architecture, unique events), lighting (artificial, neon, streetlights, natural daylight), composition, potentially narrative if it's straightforward
+4) Architecture, describe types of buildings (arches, columns, windows, doorways), composition (symmetry, perspective, lines), materials (brick, glass, steel, wood, concrete, light on the surface, lighting (natural, time of day, shadows), scale (inclusion of humans and objects), context (historical, modern, culture, decor)
+5) Photojournalism, describe the event/situation (political rallies, natural disasters, life pertaining to a culture, conflicts), emotion (people’s expression, tension, relief, key details), significance of image (story, location, history)
+6) Wildlife, describe what it i,s such as an animal, marine life, part of natural habitats, species, actions or behaviors (hunting, feeding, resting, interactions), composition (how close up it is), lighting (seasons, time of day, natural vs unnatural)
+7) Macro, describe the details within the picture, this is a close up image that may reveal specific details, describe the subject (texture, patterns, smaller features), depth of field (shallow or not), lighting (diffused, reflections, glare), context (if environment can be seen well enough), focus
+8) Astrophotography, describe celestial subjects (constellations, star trails, planets, phases of the moon, entieies such as auroras, galaxies), light pollution (dark sky or lots of city lights), composition (foreground, if there are mountains, trees, or buildings), color (star colors, clarity of sky, atmosphere)
+9) Abstract imagery, describe shapes (lines, curves, geometric forms), color (what the mood conveys), texture, composition, symbolism (if it isn’t too abstract and difficult to describe)
+10) Still life, describe the subject’s arrangement (position, spacing, harmony), lighting (texture, shape, color), texture (surfaces), colors
+12) Infographics, describe the data, the type of data, context of data, what it represents, sources, font, colors, legends
+13) Medical imaging, describe anatomical structures, purpose, what type of doctor this may pertain to
+
+This description should be a concise 25-word highlighting concepts specific to the content within the image. 

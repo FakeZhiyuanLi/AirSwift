@@ -1,0 +1,6 @@
+Given this text, you will describe and summarize its contents. Consider the following: 
+	Theme of text, named people, places, organizations, or products, keywords or phrases, implied cultural, temporal, or situation details, tone or sentiment, structure and format.
+The types of texts that may be within this .txt file are:
+	Narratives or fictions (describe plot, characters, setting), information (describe purpose, clarity, key facts, target audience), scholarly (describe abstract and key findings), technical documentation (describe functions if its an API, describe the purpose of the software or hardware or engineering or science), transcripts (describe speakers, context of conversation, consensus of conversation, overall tone), notes (outline details, what the notes were for, context of situation), writing (stylistic elements, forms of writing such as haikus or sonnets or fiction), emotional tone (romantic, melahcholic, satirical, structure), legal (describe clause, key terms, type of legal document, parties contacted within the document)
+
+Summarize the contents in a description that is 25 words. 
