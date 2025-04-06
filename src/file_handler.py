@@ -55,7 +55,7 @@ def process_pdf_file(abs_file_path: str) -> str:
     if pdf_has_text(abs_file_path):
         pdf_text = extract_text_pdf(abs_file_path)
         pdf_desc = llm_api.caption_pdf(pdf_text)
-        description_to_file_path[pdf_text] = abs_file_path # {description: filepath}
+        description_to_file_path[pdf_desc] = abs_file_path # {description: filepath}
         return pdf_desc
     else:
         pdf_text = extract_text_scanned_pdf(abs_file_path)
