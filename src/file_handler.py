@@ -18,6 +18,8 @@ def process_file(file_path):
         return process_csv_file(file_path)
     elif (extension == ".jpg" or extension == ".png" or extension == ".jpeg"):
         return process_image_file(file_path)
+    elif (extension == ".pdf"):
+        return process_pdf_file(file_path)
     else:
         print("File type not supported")
 
