@@ -6,23 +6,22 @@ import file_handler
 class Main:
     @staticmethod
     def run():
-        # db = VectorDB()
-        # test_questions = [
-        #     "Could you describe the work experiences you had before your conviction?",
-        #     "What types of activities have you participated in that you believe demonstrate your rehabilitation?",
-        #     "Can you tell me about the organizations where you worked or volunteered before and after your incarceration?",
-        #     "Can you detail any rehabilitation strategies you have implemented to stay on track?",
-        #     "How have these experiences impacted your perspectives?"
-        # ]
-        # db.add_questions(test_questions)
-        # tree_context = """
-        # After my release, I started attending regular counseling sessions and enrolled in an anger management program. I also began 
-        # volunteering, in my community which has kept me accountable.
-        # """
-        # next_question = db.search_with_context(tree_context)
-        # print(f"\nBest Question for context: {next_question['question']}")
+        db = VectorDB()
         image_desc = file_handler.process_image_file("/Users/yashpanwar/Downloads/sunflower.jpg")
-        
+        text_desc = file_handler.process_text_file("/Users/yashpanwar/Downloads/catinthehat.txt") #/Users/yashpanwar/Downloads/dialog.txt
+        #pdf_desc = file_handler.process_pdf_file("'/Users/yashpanwar/Downloads/Ch 2 Test outline.pdf'")
+        csv_desc = file_handler.process_csv_file("/Users/yashpanwar/git/expressionevaluator-aden-panwayas-mvla/bin/analysis_sum.csv")
+        test_documents = [
+            image_desc,
+            text_desc,
+            csv_desc
+        ]
+        db.add_documents(test_documents)
+        tree_context = """
+        Picture with some nice scenery, looks like a flower with vibrancy.
+        """
+        best_doc = db.search_with_context(tree_context)
+        print(f"\nBest Question for context: {best_doc['document']}")
 
 
 if __name__ == '__main__':
