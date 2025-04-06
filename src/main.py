@@ -20,7 +20,7 @@ DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
 UUID = "1234"
-POLL_FROM_AWS = True
+POLL_FROM_AWS = False
 
 # Determine the default Downloads folder based on the OS
 def get_downloads_folder():
@@ -37,8 +37,7 @@ class QueryInputBox(ctk.CTkFrame):
         super().__init__(parent)
         
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=5)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
         self.recipient_input_box = ctk.CTkEntry(self, placeholder_text="UUID (Ex. 1234)", 
                 font=("Arial Italic", 16), text_color="#AAAAAA", width=200, height=40, corner_radius=15)
@@ -48,14 +47,25 @@ class QueryInputBox(ctk.CTkFrame):
                 font=("Arial Italic", 16), text_color="#AAAAAA", height=80, corner_radius=15)
         self.text_input.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
-        self.speech_button = ctk.CTkButton(self, text="tts", width=60, height=60, corner_radius=30, command=self.handle_tts_button)
-        self.speech_button.grid(row=1, column=1, padx=0, pady=0, sticky="")
+        self.sendAndTTSGroup = ctk.CTkFrame(self)
+        self.sendAndTTSGroup.configure(fg_color="#212121")
+        self.sendAndTTSGroup.grid(row=2, column=0, padx=0, pady=25, sticky="")
 
-        self.send_button = ctk.CTkButton(self, text="Send   →", font=("Arial Bold", 24), width=100, height=50, corner_radius=25, command=self.handle_send_button)
-        self.send_button.grid(row=2, column=0, padx=10, pady=(10, 100), sticky="")
+        self.speech_button = ctk.CTkButton(self.sendAndTTSGroup, text="STT 🔊", font=("Arial Bold", 24), height=50, corner_radius=25, command=self.handle_tts_button)
+        self.send_button = ctk.CTkButton(self.sendAndTTSGroup, text="Send   →", font=("Arial Bold", 24), width=100, height=50, corner_radius=25, command=self.handle_send_button)
+
+        self.speech_button.grid(row=0, column=0, padx=20, pady=0, sticky="")
+        self.send_button.grid(row=0, column=1, padx=20, pady=0, sticky="")
+
+        # self.speech_button.grid(row=1, column=1, padx=0, pady=0, sticky="")
+        # self.send_button.grid(row=2, column=0, padx=10, pady=(10, 100), sticky="")
 
     def handle_send_button(self):
         user_description = self.text_input.get()
+
+        if len(user_description) == 0:
+            return
+
         retrieved_description = db.search_with_context(user_description)['document']
         file_path = get_description_to_file_path()[retrieved_description]
         recipient_UUID = self.recipient_input_box.get()
