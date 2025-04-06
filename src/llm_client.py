@@ -63,9 +63,44 @@ class LLMClient:
             )
         return image_desc.output_text
     
+    def caption_pdf(self, text):
+        pdf_user_path = self.file_desc_path / "pdf_prompt" / "pdf_system_prompt"
+        pdf_system_path = self.file_desc_path / "pdf_prompt" / "pdf_user_prompt"
+        with pdf_system_path.open() as system_file_reader, pdf_user_path.open() as user_file_reader:
+            system_prompt = system_file_reader.read()
+            user_prompt = user_file_reader.read()
+        pdf_desc = self.openai_client.responses.create(
+                model="gpt-4o",
+                input=[
+            {
+                "role": "developer",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": system_prompt
+                    }
+                ]
+            },
+            {
+                "role": "user",
+                "content": [
+                    { 
+                        "type": "input_text", 
+                        "text": user_prompt
+                    },
+                    {
+                        "type": "input_text",
+                        "text": f"This is the pdf text you will analyze: {text}",
+                    },
+                ],
+            }
+        ],
+            )
+        return pdf_desc.output_text
+    
     def caption_text(self, text):
-        text_user_path = self.file_desc_path / "txt_prompt" / "txt_system_prompt"
-        text_system_path = self.file_desc_path / "txt_prompt" / "txt_user_prompt"
+        text_system_path = self.file_desc_path / "txt_prompt" / "txt_system_prompt"
+        text_user_path = self.file_desc_path / "txt_prompt" / "txt_user_prompt"
         with text_system_path.open() as system_file_reader, text_user_path.open() as user_file_reader:
             system_prompt = system_file_reader.read()
             user_prompt = user_file_reader.read()
