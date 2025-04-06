@@ -90,3 +90,6 @@ def pdf_has_text(abs_file_path) -> bool:
     except Exception as e:
         print(f"Error reading PDF: {e}")
         return False
+  
+def get_description_to_file_path():
+    return description_to_file_path
