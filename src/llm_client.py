@@ -9,6 +9,15 @@ class LLMClient:
         self.base_dir = Path("src")
         self.file_desc_path = self.base_dir / "file_desc_prompts"
 
+    
+    def trascribe_desc(self, file_path):
+        audio_file = open(file_path, "rb")
+        transcription = self.openai_client.audio.transcriptions.create(
+            model="gpt-4o-transcribe",
+            file=audio_file
+        )
+        return transcription.text
+
     def encode_image(self, abs_image_path):
         with open(abs_image_path, 'rb') as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
