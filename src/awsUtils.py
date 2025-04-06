@@ -1,6 +1,7 @@
 from utils import get_aws_access_key, get_aws_secret_key
 from botocore.exceptions import ClientError
 import boto3
+import os
 
 s3 = boto3.client(
     's3',
@@ -9,6 +10,16 @@ s3 = boto3.client(
 )
 
 BUCKET_NAME = 'fakezhiyuanbucket'
+
+# Determine the default Downloads folder based on the OS
+def get_downloads_folder():
+    home = os.path.expanduser("~")
+    downloads = os.path.join(home, "Downloads")
+    if os.path.isdir(downloads):
+        return downloads
+    else:
+        # return home
+        raise IOError("couldn't access downloads folder")
 
 def check_bucket_folder_exists(path: str):
     if not path.endswith('/'):
@@ -52,7 +63,7 @@ def list_bucket_folder_files(path: str):
 
     if 'Contents' in response:
         for obj in response['Contents']:
-            files.append(obj['Key'])
+            files.append(os.path.basename(obj['Key']))
 
     return files[1:]
 
@@ -84,8 +95,7 @@ def download_file_from_bucket_folder(local_file_path, folder, s3_object):
 
 if __name__ == "__main__":
     UUID = "1234"
-    print(check_bucket_folder_exists("test"))
     print(list_bucket_folder_files(UUID))
-    upload_file_to_bucket_folder("/Users/zhiyuan/Downloads/cat.jpg", UUID)
-    print(list_bucket_folder_files(UUID))
-    download_file_from_bucket_folder("cat.jpg", UUID, "cat.jpg")
+    # upload_file_to_bucket_folder(os.path.join(get_downloads_folder(), "cat.jpg"), UUID)
+    # print(list_bucket_folder_files(UUID))
+    # download_file_from_bucket_folder(os.path.join(get_downloads_folder(), "dog.jpg"), UUID, "cat.jpg")

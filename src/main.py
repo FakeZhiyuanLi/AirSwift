@@ -1,8 +1,11 @@
 from tkinter.scrolledtext import ScrolledText
 from watchdog.observers import Observer
 from fileUtils import DownloadHandler
+from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder
 import customtkinter as ctk
+import threading
 import queue
+import time
 import os
 
 # Set appearance mode and default color theme
@@ -10,7 +13,8 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
 DOWNLOADED_FILES = []
-
+AWS_PULLED_FILES = set()
+AWS_POLL_INTERVAL = 5
 UUID = "1234"
 
 # Determine the default Downloads folder based on the OS
@@ -120,6 +124,25 @@ class App(ctk.CTk):
         self.indexedFiles = IndexedFiles(self)
         self.indexedFiles.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
+        self.thread = threading.Thread(target=self.aws_file_pull_task)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def aws_file_pull_task(self):
+        while True:
+            try:
+                folder_files = list_bucket_folder_files(UUID)
+                print("POLLED AWS")
+                for file in folder_files:
+                    if file not in AWS_PULLED_FILES:
+                        AWS_PULLED_FILES.add(file)
+                        download_file_from_bucket_folder(os.path.join(get_downloads_folder(), file), UUID, file)
+                        print("file was successfully downloaded")
+                time.sleep(AWS_POLL_INTERVAL)
+            except Exception as e:
+                print(e)
+                print("error encountered trying to pull AWS files")
+                time.sleep(10)
 
     def poll_queue(self):
         try:
@@ -142,7 +165,7 @@ class App(ctk.CTk):
     def display_file(self, file_path):
         # TODO: show the file path
         self.indexedFiles.text_area.insert("end", f"{file_path}\n")
-        print(f"here: {file_path}")
+        # print(f"here: {file_path}")
 
 if __name__ == "__main__":
     app = App()
