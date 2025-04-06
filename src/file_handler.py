@@ -21,9 +21,9 @@ def process_file(file_path):
     else:
         print("File type not supported")
 
-def process_initial_audio(abs_file_path) -> str:
-    audio_text = llm_api.trascribe_desc(abs_file_path)
-    return audio_text
+def process_initial_audio(data: bytes) -> str:
+    audio_bytes = llm_api.trascribe_desc(data)
+    return audio_bytes
 
 def process_text_file(abs_file_path) -> str:
     with open(abs_file_path, 'r') as fp:
