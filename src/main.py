@@ -2,6 +2,8 @@ from tkinter.scrolledtext import ScrolledText
 from watchdog.observers import Observer
 from fileUtils import DownloadHandler
 from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder
+from file_handler import process_file, get_description_to_file_path
+from faiss_db import VectorDB
 import customtkinter as ctk
 import threading
 import queue
@@ -12,10 +14,13 @@ import os
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
+db = VectorDB()
+
 DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
 UUID = "1234"
+POLL_FROM_AWS = False
 
 # Determine the default Downloads folder based on the OS
 def get_downloads_folder():
@@ -39,8 +44,23 @@ class QueryInputBox(ctk.CTkFrame):
                 font=("Arial Italic", 16), text_color="#AAAAAA", height=80, corner_radius=15)
         self.text_input.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
-        self.speech_button = ctk.CTkButton(self, text="tts", width=60, height=60, corner_radius=30)
+        self.speech_button = ctk.CTkButton(self, text="tts", width=60, height=60, corner_radius=30, command=self.handle_tts_button)
         self.speech_button.grid(row=0, column=1, padx=0, pady=0, sticky="")
+
+        self.send_button = ctk.CTkButton(self, text="Send   →", font=("Arial Bold", 24), width=100, height=50, corner_radius=25, command=self.handle_send_button)
+        self.send_button.grid(row=1, column=0, padx=10, pady=(10, 100), sticky="")
+
+    def handle_send_button(self):
+        user_description = self.text_input.get()
+
+        retrieved_description = db.search_with_context(user_description)['document']
+
+        file_path = get_description_to_file_path()[retrieved_description]
+        print(f'file_path: {file_path}')
+        
+    
+    def handle_tts_button(self):
+        pass
 
 class RecipientAndInput(ctk.CTkFrame):
     def __init__(self, parent):
@@ -59,9 +79,6 @@ class RecipientAndInput(ctk.CTkFrame):
 
         self.queryInputBox = QueryInputBox(self)
         self.queryInputBox.grid(row=1, column=0, padx=10, pady=20, sticky="ew")
-
-        self.send_button = ctk.CTkButton(self, text="Send   →", font=("Arial Bold", 24), width=100, height=50, corner_radius=25)
-        self.send_button.grid(row=2, column=0, padx=10, pady=(10, 100), sticky="")
 
 class UserControls(ctk.CTkFrame):
     def __init__(self, parent):
@@ -124,9 +141,10 @@ class App(ctk.CTk):
         self.indexedFiles = IndexedFiles(self)
         self.indexedFiles.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-        self.thread = threading.Thread(target=self.aws_file_pull_task)
-        self.thread.daemon = True
-        self.thread.start()
+        if POLL_FROM_AWS:
+            self.thread = threading.Thread(target=self.aws_file_pull_task)
+            self.thread.daemon = True
+            self.thread.start()
 
     def aws_file_pull_task(self):
         while True:
@@ -150,6 +168,10 @@ class App(ctk.CTk):
                 file_path = self.file_queue.get_nowait()
                 DOWNLOADED_FILES.append(file_path)
                 self.display_file(file_path)
+
+                document_description = process_file(file_path)
+                db.add_document(document_description)
+
                 # print(f"file downloaded: {file_path}")
         except queue.Empty:
             pass
