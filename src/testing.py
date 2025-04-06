@@ -6,9 +6,9 @@ import file_handler
 class Main:
     @staticmethod
     def run():
-        text_audio = file_handler.process_initial_audio("/Users/yashpanwar/Downloads/rick.mp3")
-        print(text_audio)
-        # db = VectorDB()
+        # text_audio = file_handler.process_initial_audio("/Users/yashpanwar/Downloads/rick.mp3")
+        # print(text_audio)
+        db = VectorDB()
         # image_desc = file_handler.process_image_file("/Users/yashpanwar/Downloads/sunflower.jpg")
         # text_desc = file_handler.process_text_file("/Users/yashpanwar/Downloads/catinthehat.txt") #/Users/yashpanwar/Downloads/dialog.txt
         # #pdf_desc = file_handler.process_pdf_file("'/Users/yashpanwar/Downloads/Ch 2 Test outline.pdf'")
