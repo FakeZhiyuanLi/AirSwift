@@ -9,6 +9,17 @@ import csv
 
 llm_api = LLMClient()
 
+def process_file(file_path):
+    root, extension = os.path.splitext(file_path)
+    if extension == ".txt":
+        return process_text_file(file_path)
+    elif extension == ".csv":
+        return process_csv_file(file_path)
+    elif (extension == ".jpg" or extension == ".png" or extension == ".jpeg"):
+        return process_image_file(file_path)
+    else:
+        print("File type not supported")
+
 def process_text_file(abs_file_path) -> str:
     with open(abs_file_path, 'r') as fp:
         text_content = fp.read()
