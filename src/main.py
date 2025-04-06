@@ -21,8 +21,8 @@ db = VectorDB()
 DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
-UUID = str(random.randint(10000, 99999))
-# UUID = "1234"
+# UUID = str(random.randint(10000, 99999))
+UUID = "31846"
 POLL_FROM_AWS = True
 
 # Determine the default Downloads folder based on the OS
@@ -301,6 +301,7 @@ class ConfirmationPopup(ctk.CTkToplevel):
 
         self.result = False
         self.file_name = file_name
+        self.parent = parent  # Store parent reference
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -337,7 +338,7 @@ class ConfirmationPopup(ctk.CTkToplevel):
         )
         self.download_button.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="e")
         
-        self.skip_button = ctk.CTkButton(
+        skip_button = ctk.CTkButton(
             button_frame, 
             text="Skip", 
             command=self.on_cancel,
@@ -346,17 +347,38 @@ class ConfirmationPopup(ctk.CTkToplevel):
             height=40,
             corner_radius=15
         )
-        self.skip_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="w")
+        skip_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="w")
 
     def on_confirm(self):
         """Callback for the confirm button"""
+        self.download_button.configure(state="disabled", text="Downloading...")
+        threading.Thread(target=self._perform_download, daemon=True).start()
+    
+    def _perform_download(self):
+        try:
+            AWS_PULLED_FILES.add(self.file_name)
+            download_path = os.path.join(get_downloads_folder(), self.file_name)
+            print("starting download")
+            download_file_from_bucket_folder(download_path, UUID, self.file_name)
+            print("finished download")
+            
+            # Clean up in main thread
+            self.after(0, self._finish_download)
+        except Exception as e:
+            print(f"Download error: {e}")
+            # Clean up in main thread even on error
+            self.after(0, self._finish_download)
+    
+    def _finish_download(self):
         self.result = True
         self.destroy()
     
     def on_cancel(self):
         """Callback for the cancel button"""
         self.result = False
+        AWS_PULLED_FILES.add(self.file_name)  # Still mark as handled
         self.destroy()
+
 
 
 class App(ctk.CTk):
