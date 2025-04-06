@@ -365,17 +365,20 @@ class App(ctk.CTk):
         self.geometry(f"{1100}x{800}")
         self.title("AirSwift")
 
+        # Set up queues for thread-safe communication
         self.file_queue = queue.Queue()
+        self.ui_update_queue = queue.Queue()
+        self.file_processing_queue = queue.Queue()
+        
+        # Event handler for file downloads
         self.event_handler = DownloadHandler(self.file_queue)
 
+        # Set up and start the watchdog observer
         self.observer = Observer()
         self.observer.schedule(self.event_handler, path=get_downloads_folder(), recursive=False)
         self.observer.start()
 
-        self.poll_queue()
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-
-
+        # Set up UI layout
         self.grid_columnconfigure(0, weight=3)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -387,25 +390,110 @@ class App(ctk.CTk):
         self.indexedFiles = IndexedFiles(self)
         self.indexedFiles.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-        if POLL_FROM_AWS:
-            self.thread = threading.Thread(target=self.aws_file_pull_task)
-            self.thread.daemon = True
-            self.thread.start()
+        # Status bar for background operations
+        self.status_bar = ctk.CTkLabel(self, text="", font=("Arial", 12), anchor="w")
+        self.status_bar.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
 
-    def aws_file_pull_task(self):
+        # Start polling threads
+        self.poll_queue()
+        self.poll_ui_updates()
+        
+        # Start file processing thread
+        self.file_processor_thread = threading.Thread(target=self.process_files_thread, daemon=True)
+        self.file_processor_thread.start()
+        
+        # Start AWS polling if enabled
+        if POLL_FROM_AWS:
+            self.aws_thread = threading.Thread(target=self.aws_file_pull_task, daemon=True)
+            self.aws_thread.start()
+
+        # Set up close handler
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def process_files_thread(self):
+        """Thread that processes files in the background"""
         while True:
             try:
+                file_path = self.file_processing_queue.get()
+                # Update status
+                self.ui_update_queue.put(("status", "Processing file..."))
+                
+                # Process the file
+                document_description = process_file(file_path)
+                db.add_document(document_description)
+                
+                # Clear status
+                self.ui_update_queue.put(("status", ""))
+                
+                self.file_processing_queue.task_done()
+            except Exception as e:
+                print(f"Error processing file: {e}")
+                self.ui_update_queue.put(("status", f"Error processing file: {str(e)}"))
+                time.sleep(2)
+                self.ui_update_queue.put(("status", ""))
+
+    def poll_ui_updates(self):
+        """Check for UI updates from worker threads"""
+        try:
+            while True:
+                update_type, data = self.ui_update_queue.get_nowait()
+                
+                if update_type == "status":
+                    self.status_bar.configure(text=data)
+                elif update_type == "add_file":
+                    self.indexedFiles.text_area.insert("end", f"{data}\n")
+                
+                self.ui_update_queue.task_done()
+        except queue.Empty:
+            pass
+        
+        # Check again after 50 ms
+        self.after(50, self.poll_ui_updates)
+
+    def poll_queue(self):
+        """Check for new downloaded files"""
+        try:
+            while True:
+                file_path = self.file_queue.get_nowait()
+                DOWNLOADED_FILES.append(file_path)
+                
+                # Add to UI
+                self.ui_update_queue.put(("add_file", file_path))
+                
+                # Queue for processing
+                self.file_processing_queue.put(file_path)
+                
+                self.file_queue.task_done()
+        except queue.Empty:
+            pass
+        
+        # Check again after 100 ms
+        self.after(100, self.poll_queue)
+
+    def aws_file_pull_task(self):
+        """Thread that polls AWS for new files"""
+        while True:
+            try:
+                # Update status via queue
+                self.ui_update_queue.put(("status", "Checking for new files..."))
+                
                 folder_files = list_bucket_folder_files(UUID)
                 print("POLLED AWS")
+                
+                # Clear status after successful poll
+                self.ui_update_queue.put(("status", ""))
+                
                 for file in folder_files:
                     if file not in AWS_PULLED_FILES:
                         AWS_PULLED_FILES.add(file)
                         self.show_download_confirmation(file)
-                        # download_file_from_bucket_folder(os.path.join(get_downloads_folder(), file), UUID, file)
+                
                 time.sleep(AWS_POLL_INTERVAL)
             except Exception as e:
-                print(e)
+                print(f"AWS polling error: {e}")
+                self.ui_update_queue.put(("status", f"AWS connection error: {str(e)}"))
                 time.sleep(10)
+                self.ui_update_queue.put(("status", ""))
 
     def show_download_confirmation(self, file):
         self.after(0, lambda: self._show_download_confirmation_dialog(file))
@@ -416,40 +504,17 @@ class App(ctk.CTk):
         # Wait for the popup to be closed
         self.wait_window(popup)
         
-        # Handle the result
+        # Handle the result (download happens in popup thread)
         if popup.result:
-            print(f"Downloading file: {file}")
-            AWS_PULLED_FILES.add(file)
-            download_file_from_bucket_folder(os.path.join(get_downloads_folder(), file), UUID, file)
-            print("File was successfully downloaded")
+            print(f"File was successfully downloaded: {file}")
         else:
             print(f"Skipped download for file: {file}")
-            # Still add to pulled files to avoid asking again
-            AWS_PULLED_FILES.add(file)
-
-    def poll_queue(self):
-        try:
-            while True:
-                file_path = self.file_queue.get_nowait()
-                DOWNLOADED_FILES.append(file_path)
-                self.display_file(file_path)
-
-                document_description = process_file(file_path)
-                db.add_document(document_description)
-
-                # print(f"file downloaded: {file_path}")
-        except queue.Empty:
-            pass
-        # Check again after 100 ms
-        self.after(100, self.poll_queue)
 
     def on_close(self):
+        # Stop the observer thread before closing the app
         self.observer.stop()
         self.observer.join()
         self.destroy()
-
-    def display_file(self, file_path):
-        self.indexedFiles.text_area.insert("end", f"{file_path}\n")
 
 if __name__ == "__main__":
     app = App()
