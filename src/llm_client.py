@@ -2,6 +2,7 @@ from utils import get_openai_key
 from openai import OpenAI
 import base64
 from pathlib import Path
+import io
 
 class LLMClient:
     def __init__(self):
@@ -10,11 +11,16 @@ class LLMClient:
         self.file_desc_path = self.base_dir / "file_desc_prompts"
 
     
-    def trascribe_desc(self, file_path):
-        audio_file = open(file_path, "rb")
+    def trascribe_desc(self, data: bytes):
+        '''
+        Calls Whisper API to transcribe audio bytes
+        Returns a string with transcriptions
+        '''
+        wav_data = io.BytesIO(data)
+        wav_data.name = "input.wav"
         transcription = self.openai_client.audio.transcriptions.create(
-            model="gpt-4o-transcribe",
-            file=audio_file
+            model="whisper-1",
+            file=wav_data
         )
         return transcription.text
 
