@@ -1,13 +1,14 @@
-from tkinter.scrolledtext import ScrolledText
 from watchdog.observers import Observer
 from fileUtils import DownloadHandler
 from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder, upload_file_to_bucket_folder
-from file_handler import process_file, get_description_to_file_path
+from file_handler import process_file, get_description_to_file_path, process_initial_audio
 from faiss_db import VectorDB
+from audio_recorder import record_until_silence_bytes
 import customtkinter as ctk
 import threading
 import queue
 import time
+import random
 import os
 
 # Set appearance mode and default color theme
@@ -19,7 +20,7 @@ db = VectorDB()
 DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
-UUID = "1234"
+UUID = str(random.randint(10000, 99999))
 POLL_FROM_AWS = False
 
 # Determine the default Downloads folder based on the OS
@@ -39,7 +40,7 @@ class QueryInputBox(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        self.recipient_input_box = ctk.CTkEntry(self, placeholder_text="UUID (Ex. 1234)", 
+        self.recipient_input_box = ctk.CTkEntry(self, placeholder_text="UUID (Ex. 12345)", 
                 font=("Arial Italic", 16), text_color="#AAAAAA", width=200, height=40, corner_radius=15)
         self.recipient_input_box.grid(row=0, column=0, padx=10, pady=10, sticky="")
 
@@ -70,9 +71,20 @@ class QueryInputBox(ctk.CTkFrame):
         file_path = get_description_to_file_path()[retrieved_description]
         recipient_UUID = self.recipient_input_box.get()
         upload_file_to_bucket_folder(file_path, recipient_UUID)
+        print("successfully uploaded from send button")
     
     def handle_tts_button(self):
-        pass
+        bytes_output = record_until_silence_bytes()
+        transcription = process_initial_audio(bytes_output)
+        self.text_input.delete(0, ctk.END)
+        self.text_input.insert(0, transcription)
+        
+        retrieved_description = db.search_with_context(transcription)['document']
+        file_path = get_description_to_file_path()[retrieved_description]
+        recipient_UUID = self.recipient_input_box.get()
+        upload_file_to_bucket_folder(file_path, recipient_UUID)
+        print("successfully uploaded from tts")
+
 
 class RecipientAndInput(ctk.CTkFrame):
     def __init__(self, parent):
