@@ -4,6 +4,7 @@ from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder,
 from file_handler import process_file, get_description_to_file_path, process_initial_audio
 from faiss_db import VectorDB
 from audio_recorder import record_until_silence_bytes
+from PIL import Image
 import customtkinter as ctk
 import threading
 import queue
@@ -59,32 +60,51 @@ class QueryInputBox(ctk.CTkFrame):
         self.speech_button.grid(row=0, column=0, padx=20, pady=0, sticky="")
         self.send_button.grid(row=0, column=1, padx=20, pady=0, sticky="")
 
-        # self.speech_button.grid(row=1, column=1, padx=0, pady=0, sticky="")
-        # self.send_button.grid(row=2, column=0, padx=10, pady=(10, 100), sticky="")
-
     def handle_send_button(self):
         user_description = self.text_input.get()
 
         if len(user_description) == 0:
             return
-
+        
+        # Disable button and show status
+        self.send_button.configure(state="disabled")
+        
+        # Use threading to keep UI responsive
+        threading.Thread(target=self._process_send, args=(user_description,), daemon=True).start()
+    
+    def _process_send(self, user_description):
+        recipient_UUID = self.recipient_input_box.get()
+        
+        # Search in database
         retrieved_description = db.search_with_context(user_description)['document']
         file_path = get_description_to_file_path()[retrieved_description]
-        recipient_UUID = self.recipient_input_box.get()
+        
+        # Upload file
         upload_file_to_bucket_folder(file_path, recipient_UUID)
-        print("successfully uploaded from send button")
+        self.send_button.configure(state="enabled")
+            
     
     def handle_tts_button(self):
+        # Disable button and show status
+        self.speech_button.configure(state="disabled")
+        
+        # Use threading to keep UI responsive
+        threading.Thread(target=self._process_tts, daemon=True).start()
+
+    def _process_tts(self):
         bytes_output = record_until_silence_bytes()
         transcription = process_initial_audio(bytes_output)
-        self.text_input.delete(0, ctk.END)
-        self.text_input.insert(0, transcription)
         
+        # Update input field from main thread
+        self.after(0, lambda: self.text_input.delete(0, ctk.END))
+        self.after(10, lambda: self.text_input.insert(0, transcription))
+        
+        # Process search and upload
+        recipient_UUID = self.recipient_input_box.get()
         retrieved_description = db.search_with_context(transcription)['document']
         file_path = get_description_to_file_path()[retrieved_description]
-        recipient_UUID = self.recipient_input_box.get()
         upload_file_to_bucket_folder(file_path, recipient_UUID)
-        print("successfully uploaded from tts")
+        self.speech_button.configure(state="enabled")
 
 
 class RecipientAndInput(ctk.CTkFrame):
@@ -96,30 +116,159 @@ class RecipientAndInput(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
-        # self.recipient_dropdown = ctk.CTkOptionMenu(self, values=["Select A Recipient", "Friend 1", "Friend 2", "Group Chat"],
-        #     width=300, height=40, 
-        #     fg_color="#2D2D2D", button_color="#2D2D2D",
-        #     text_color="white", dropdown_fg_color="#2D2D2D")
-        # self.recipient_dropdown.grid(row=0, column=0, padx=10, pady=10, sticky="")
-
         self.queryInputBox = QueryInputBox(self)
         self.queryInputBox.grid(row=1, column=0, padx=10, pady=20, sticky="ew")
 
+def open_settings(self):
+    self.settings_popup = SettingsPopup(self)
+
+class SettingsPopup(ctk.CTkToplevel):
+    def __init__(self, parent):
+        super().__init__()  # Don't pass parent directly to avoid macOS issues
+        
+        self.parent = parent
+        self.title("Settings")
+        self.geometry("450x350")
+        self.resizable(False, False)
+        
+        # Configure behavior - use after() to avoid animation issues
+        self.after(100, lambda: self.transient(parent))
+        self.after(100, lambda: self.grab_set())
+        
+        # Center on parent
+        if parent:
+            x = parent.winfo_x() + (parent.winfo_width() - 450) // 2
+            y = parent.winfo_y() + (parent.winfo_height() - 350) // 2
+            self.geometry(f"+{x}+{y}")
+        
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_rowconfigure(2, weight=0)
+        self.grid_rowconfigure(3, weight=1)
+        
+        # Header
+        header_label = ctk.CTkLabel(self, text="Settings", font=("Arial Bold", 28))
+        header_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nw")
+        
+        # Settings container
+        settings_frame = ctk.CTkFrame(self)
+        settings_frame.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        settings_frame.grid_columnconfigure(0, weight=0)
+        settings_frame.grid_columnconfigure(1, weight=1)
+        
+        # Username setting
+        username_label = ctk.CTkLabel(settings_frame, text="Display Name:", font=("Arial", 16))
+        username_label.grid(row=0, column=0, padx=(20, 10), pady=20, sticky="w")
+        
+        # Get current username from parent's greeting label or use default
+        current_name = "[User]"
+        try:
+            if hasattr(parent, 'greet_text'):
+                greeting_text = parent.greet_text.cget("text")
+                if "Hey there, " in greeting_text:
+                    current_name = greeting_text.replace("Hey there, ", "")
+        except Exception:
+            pass
+        
+        self.username_entry = ctk.CTkEntry(settings_frame, font=("Arial", 16), width=200)
+        self.username_entry.insert(0, current_name)
+        self.username_entry.grid(row=0, column=1, padx=(10, 20), pady=20, sticky="w")
+        
+        # Theme setting
+        theme_label = ctk.CTkLabel(settings_frame, text="Theme:", font=("Arial", 16))
+        theme_label.grid(row=1, column=0, padx=(20, 10), pady=20, sticky="w")
+        
+        # Get current theme
+        current_theme = ctk.get_appearance_mode().lower()
+        
+        self.theme_var = ctk.StringVar(value=current_theme)
+        self.theme_combobox = ctk.CTkComboBox(
+            settings_frame,
+            values=["dark", "light", "system"],
+            variable=self.theme_var,
+            state="readonly",
+            font=("Arial", 16),
+            width=200
+        )
+        self.theme_combobox.grid(row=1, column=1, padx=(10, 20), pady=20, sticky="w")
+        
+        # Buttons container
+        buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
+        buttons_frame.grid(row=2, column=0, padx=20, pady=(20, 20), sticky="ew")
+        buttons_frame.grid_columnconfigure(0, weight=1)
+        buttons_frame.grid_columnconfigure(1, weight=1)
+        
+        # Cancel button
+        cancel_button = ctk.CTkButton(
+            buttons_frame,
+            text="Cancel",
+            command=self.on_cancel,
+            fg_color="#e74c3c",
+            font=("Arial Bold", 14),
+            height=40,
+            corner_radius=15
+        )
+        cancel_button.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="e")
+        
+        # Save button
+        save_button = ctk.CTkButton(
+            buttons_frame,
+            text="Save",
+            command=self.save_settings,
+            fg_color="#2ecc71",
+            font=("Arial Bold", 14),
+            height=40,
+            corner_radius=15
+        )
+        save_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="w")
+    
+    def on_cancel(self):
+        """Safely destroy the window"""
+        try:
+            self.grab_release()
+            self.destroy()
+        except Exception:
+            pass
+    
+    def save_settings(self):
+        # Update username
+        try:
+            new_username = self.username_entry.get()
+            if new_username.strip():  # Check if the username is not empty
+                self.parent.greet_text.configure(text=f"Hey there, {new_username}")
+            
+            # Update theme
+            selected_theme = self.theme_var.get()
+            ctk.set_appearance_mode(selected_theme)
+        except Exception as e:
+            print(f"Error saving settings: {e}")
+        
+        # Close the popup
+        self.on_cancel()
 
 class UserControls(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(2, weight=10)
+
+        self.settings_image = ctk.CTkImage(Image.open("assets/settings.png"), size=(20, 20))
+        self.settings_button = ctk.CTkButton(self, text="", image=self.settings_image, command=self.open_settings, width=40, height=40)
+        self.settings_button.grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
         self.greet_text = ctk.CTkLabel(self, text=f"Hey there, [User]", font=("Arial Bold", 42), text_color="white", anchor="center")
-        self.greet_text.grid(row=0, column=0, padx=10, pady=(100, 0), sticky="")
+        self.greet_text.grid(row=1, column=0, padx=10, pady=(100, 0), sticky="")
 
         self.recipientAndInput = RecipientAndInput(self)
-        self.recipientAndInput.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.recipientAndInput.grid(row=2, column=0, padx=10, pady=(0, 50), sticky="ew")
+
+    def open_settings(self):
+        self.settings_popup = SettingsPopup(self)
 
 class IndexedFiles(ctk.CTkFrame):
     def __init__(self, parent):
@@ -177,7 +326,7 @@ class ConfirmationPopup(ctk.CTkToplevel):
         button_frame.grid_columnconfigure(0, weight=1)
         button_frame.grid_columnconfigure(1, weight=1)
 
-        download_button = ctk.CTkButton(
+        self.download_button = ctk.CTkButton(
             button_frame, 
             text="Download", 
             command=self.on_confirm,
@@ -186,9 +335,9 @@ class ConfirmationPopup(ctk.CTkToplevel):
             height=40,
             corner_radius=15
         )
-        download_button.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="e")
+        self.download_button.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="e")
         
-        skip_button = ctk.CTkButton(
+        self.skip_button = ctk.CTkButton(
             button_frame, 
             text="Skip", 
             command=self.on_cancel,
@@ -197,7 +346,7 @@ class ConfirmationPopup(ctk.CTkToplevel):
             height=40,
             corner_radius=15
         )
-        skip_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="w")
+        self.skip_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="w")
 
     def on_confirm(self):
         """Callback for the confirm button"""
@@ -295,15 +444,12 @@ class App(ctk.CTk):
         self.after(100, self.poll_queue)
 
     def on_close(self):
-        # Stop the observer thread before closing the app
         self.observer.stop()
         self.observer.join()
         self.destroy()
 
     def display_file(self, file_path):
-        # TODO: show the file path
         self.indexedFiles.text_area.insert("end", f"{file_path}\n")
-        # print(f"here: {file_path}")
 
 if __name__ == "__main__":
     app = App()
