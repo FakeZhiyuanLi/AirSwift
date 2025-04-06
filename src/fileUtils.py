@@ -23,4 +23,4 @@ class DownloadHandler(FileSystemEventHandler):
             if ext.replace(" ", "").lower() in self.SUPPORTED_EXTENSIONS and event.src_path not in EXISTING_FILES:
                 self.file_queue.put(event.src_path)
                 EXISTING_FILES.add(event.src_path)
-                print(f'file detected: {event.src_path}')
+                # print(f'file detected: {event.src_path}')
