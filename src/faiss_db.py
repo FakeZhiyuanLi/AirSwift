@@ -25,7 +25,7 @@ class VectorDB:
         return index
 
     def _generate_embedding(self, text: str) -> List[float]:
-        print(text)
+        #print(text)
         response = self.openai_client.embeddings.create(
             model=self.embedding_model,
             input=[text]
