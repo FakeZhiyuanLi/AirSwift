@@ -1,6 +1,5 @@
 import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import uuid
 from typing import List, Dict, Any, Optional
 from openai import OpenAI
