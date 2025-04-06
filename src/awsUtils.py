@@ -94,8 +94,9 @@ def download_file_from_bucket_folder(local_file_path, folder, s3_object):
     s3.download_file(BUCKET_NAME, object_key, local_file_path)
 
 if __name__ == "__main__":
-    UUID = "1234"
-    print(list_bucket_folder_files(UUID))
+    # UUID = "1234"
+    # print(list_bucket_folder_files(UUID))
     # upload_file_to_bucket_folder(os.path.join(get_downloads_folder(), "cat.jpg"), UUID)
     # print(list_bucket_folder_files(UUID))
     # download_file_from_bucket_folder(os.path.join(get_downloads_folder(), "dog.jpg"), UUID, "cat.jpg")
+    delete_all_bucket_folders()

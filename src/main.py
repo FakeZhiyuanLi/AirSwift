@@ -1,13 +1,14 @@
-from tkinter.scrolledtext import ScrolledText
 from watchdog.observers import Observer
 from fileUtils import DownloadHandler
 from awsUtils import list_bucket_folder_files, download_file_from_bucket_folder, upload_file_to_bucket_folder
-from file_handler import process_file, get_description_to_file_path
+from file_handler import process_file, get_description_to_file_path, process_initial_audio
 from faiss_db import VectorDB
+from audio_recorder import record_until_silence_bytes
 import customtkinter as ctk
 import threading
 import queue
 import time
+import random
 import os
 
 # Set appearance mode and default color theme
@@ -19,8 +20,9 @@ db = VectorDB()
 DOWNLOADED_FILES = []
 AWS_PULLED_FILES = set()
 AWS_POLL_INTERVAL = 5
-UUID = "1234"
-POLL_FROM_AWS = False
+UUID = str(random.randint(10000, 99999))
+# UUID = "1234"
+POLL_FROM_AWS = True
 
 # Determine the default Downloads folder based on the OS
 def get_downloads_folder():
@@ -39,7 +41,7 @@ class QueryInputBox(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        self.recipient_input_box = ctk.CTkEntry(self, placeholder_text="UUID (Ex. 1234)", 
+        self.recipient_input_box = ctk.CTkEntry(self, placeholder_text="UUID (Ex. 12345)", 
                 font=("Arial Italic", 16), text_color="#AAAAAA", width=200, height=40, corner_radius=15)
         self.recipient_input_box.grid(row=0, column=0, padx=10, pady=10, sticky="")
 
@@ -70,9 +72,20 @@ class QueryInputBox(ctk.CTkFrame):
         file_path = get_description_to_file_path()[retrieved_description]
         recipient_UUID = self.recipient_input_box.get()
         upload_file_to_bucket_folder(file_path, recipient_UUID)
+        print("successfully uploaded from send button")
     
     def handle_tts_button(self):
-        pass
+        bytes_output = record_until_silence_bytes()
+        transcription = process_initial_audio(bytes_output)
+        self.text_input.delete(0, ctk.END)
+        self.text_input.insert(0, transcription)
+        
+        retrieved_description = db.search_with_context(transcription)['document']
+        file_path = get_description_to_file_path()[retrieved_description]
+        recipient_UUID = self.recipient_input_box.get()
+        upload_file_to_bucket_folder(file_path, recipient_UUID)
+        print("successfully uploaded from tts")
+
 
 class RecipientAndInput(ctk.CTkFrame):
     def __init__(self, parent):
@@ -126,6 +139,77 @@ class IndexedFiles(ctk.CTkFrame):
         self.text_area = ctk.CTkTextbox(self, wrap=ctk.NONE, font=("Arial", 14))
         self.text_area.grid(row=2, column=0, padx=0, pady=0, sticky="nsew")
 
+class ConfirmationPopup(ctk.CTkToplevel):
+    def __init__(self, parent, file_name):
+        super().__init__()
+
+        self.title("File Download Confirmation")
+        self.geometry("450x200")
+        self.resizable(False, False)
+
+        self.transient(parent)
+        self.grab_set()
+
+        self.result = False
+        self.file_name = file_name
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
+        
+        # Message frame
+        message_frame = ctk.CTkFrame(self, fg_color="transparent")
+        message_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="nsew")
+
+        file_icon = ctk.CTkLabel(message_frame, text="📄", font=("Arial", 32))
+        file_icon.grid(row=0, column=0, padx=(0, 15), pady=10)
+
+        message_label = ctk.CTkLabel(
+            message_frame, 
+            text=f"New file detected. Download '{self.file_name}'?",
+            font=("Arial", 14),
+            justify="left"
+        )
+        message_label.grid(row=0, column=1, padx=0, pady=10, sticky="w")
+
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="sew")
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
+
+        download_button = ctk.CTkButton(
+            button_frame, 
+            text="Download", 
+            command=self.on_confirm,
+            fg_color="#2ecc71",
+            font=("Arial Bold", 14),
+            height=40,
+            corner_radius=15
+        )
+        download_button.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="e")
+        
+        skip_button = ctk.CTkButton(
+            button_frame, 
+            text="Skip", 
+            command=self.on_cancel,
+            fg_color="#e74c3c",
+            font=("Arial Bold", 14),
+            height=40,
+            corner_radius=15
+        )
+        skip_button.grid(row=0, column=1, padx=(10, 0), pady=10, sticky="w")
+
+    def on_confirm(self):
+        """Callback for the confirm button"""
+        self.result = True
+        self.destroy()
+    
+    def on_cancel(self):
+        """Callback for the cancel button"""
+        self.result = False
+        self.destroy()
+
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -167,13 +251,32 @@ class App(ctk.CTk):
                 for file in folder_files:
                     if file not in AWS_PULLED_FILES:
                         AWS_PULLED_FILES.add(file)
-                        download_file_from_bucket_folder(os.path.join(get_downloads_folder(), file), UUID, file)
-                        print("file was successfully downloaded")
+                        self.show_download_confirmation(file)
+                        # download_file_from_bucket_folder(os.path.join(get_downloads_folder(), file), UUID, file)
                 time.sleep(AWS_POLL_INTERVAL)
             except Exception as e:
                 print(e)
-                print("error encountered trying to pull AWS files")
                 time.sleep(10)
+
+    def show_download_confirmation(self, file):
+        self.after(0, lambda: self._show_download_confirmation_dialog(file))
+
+    def _show_download_confirmation_dialog(self, file):
+        popup = ConfirmationPopup(self, file)
+        
+        # Wait for the popup to be closed
+        self.wait_window(popup)
+        
+        # Handle the result
+        if popup.result:
+            print(f"Downloading file: {file}")
+            AWS_PULLED_FILES.add(file)
+            download_file_from_bucket_folder(os.path.join(get_downloads_folder(), file), UUID, file)
+            print("File was successfully downloaded")
+        else:
+            print(f"Skipped download for file: {file}")
+            # Still add to pulled files to avoid asking again
+            AWS_PULLED_FILES.add(file)
 
     def poll_queue(self):
         try:
